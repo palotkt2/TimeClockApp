@@ -40,83 +40,82 @@ const Header = () => {
 
   return (
     <AppBar
-      position="sticky" // Changed from "static" to "sticky"
-      color="default"
-      elevation={1}
+      position="sticky"
+      elevation={2}
       sx={{
         bgcolor: 'white',
         mb: 2,
+        borderBottom: '1px solid #e0e0e0',
       }}
     >
-      <Toolbar>
+      <Toolbar sx={{ py: 1 }}>
         {/* Logo on the left */}
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mr: 2 }}>
           <Image
             src="/images/benchpro-logo-blue-back.svg"
             alt="BenchPro Logo"
-            width={200}
-            height={60}
+            width={180}
+            height={55}
             priority
-            style={{ height: 'auto' }} // Ensure proper scaling
+            style={{ height: 'auto' }}
           />
         </Box>
 
-        {/* Center text */}
-        <Typography
-          variant="h6"
-          sx={{
-            flexGrow: 1, // Ensures horizontal centering
-            textAlign: 'center',
-            fontWeight: 'bold',
-            fontFamily: '"Roboto", sans-serif',
-            color: '#1976d2',
-          }}
-        >
-          Reloj Checador
-        </Typography>
-
-        {/* Modern date and time display on the right */}
+        {/* Center content with title and date */}
         <Box
           sx={{
+            flexGrow: 1,
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
-            justifyContent: 'flex-end',
+            justifyContent: 'center',
           }}
         >
-          <Paper
-            elevation={2}
+          <Typography
+            variant="h5"
             sx={{
-              display: 'inline-flex',
-              bgcolor: '#f0f7ff',
-              p: 1,
-              borderRadius: 2,
-              mb: 3, // Increased from mb: 1 to create more separation
-              minWidth: '250px',
-              justifyContent: 'center',
+              fontWeight: 'bold',
+              fontFamily: '"Roboto", sans-serif',
+              color: '#1565c0',
+              mb: 0.5,
+              letterSpacing: '0.5px',
             }}
           >
-            <Typography
-              variant="body1"
-              sx={{
-                fontWeight: 'medium',
-                fontFamily: '"Roboto", sans-serif',
-                color: '#1976d2',
-              }}
-            >
-              {capitalizedDate}
-            </Typography>
-          </Paper>
+            Reloj Checador
+          </Typography>
 
+          {/* Date now appears below the title */}
+          <Typography
+            variant="body1"
+            sx={{
+              fontFamily: '"Roboto", sans-serif',
+              color: '#5c6bc0',
+              fontWeight: 500,
+              fontSize: '0.95rem',
+              backgroundColor: '#f3f8ff',
+              px: 2,
+              py: 0.5,
+              borderRadius: 1,
+              border: '1px solid #e3f2fd',
+            }}
+          >
+            {capitalizedDate}
+          </Typography>
+        </Box>
+
+        {/* Clock on the right */}
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <Paper
             elevation={3}
             sx={{
               display: 'inline-flex',
-              bgcolor: 'black',
+              background: 'linear-gradient(145deg, #1565c0, #0d47a1)',
               color: 'white',
-              p: 1,
+              p: 1.2,
               borderRadius: 2,
               minWidth: '180px',
               justifyContent: 'center',
+              boxShadow: '0 4px 12px rgba(21, 101, 192, 0.3)',
             }}
           >
             <Box
@@ -158,7 +157,12 @@ const Header = () => {
                 sx={{
                   ml: 1,
                   alignSelf: 'flex-start',
-                  color: 'primary.main',
+                  color: '#ffffff',
+                  bgcolor: 'rgba(255,255,255,0.2)',
+                  px: 0.8,
+                  py: 0.3,
+                  borderRadius: 1,
+                  fontWeight: 'bold',
                 }}
               >
                 {ampm}
