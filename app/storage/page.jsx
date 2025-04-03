@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Layout from '../Layout';
 import {
   FaTrash,
@@ -14,6 +14,7 @@ import {
   FaSortAmountUp,
   FaTimes,
   FaCalendarAlt,
+  FaSync,
 } from 'react-icons/fa';
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
@@ -32,6 +33,7 @@ export default function StoragePage() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [entryToDelete, setEntryToDelete] = useState(null);
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  const [recalcTrigger, setRecalcTrigger] = useState(0);
 
   // Load saved entries from localStorage on component mount
   useEffect(() => {
@@ -168,7 +170,7 @@ export default function StoragePage() {
         }
         entriesByDay[dateKey].push({
           timestamp: entryDate,
-          type: entriesByDay[dateKey].length % 2 === 0 ? 'entry' : 'exit',
+          exactTime: entryDate.getTime(),
         });
       }
     });
@@ -176,28 +178,22 @@ export default function StoragePage() {
     // Process each day's entries
     Object.entries(entriesByDay).forEach(([date, dayEntries]) => {
       // Sort entries by timestamp
-      dayEntries.sort((a, b) => a.timestamp - b.timestamp);
+      dayEntries.sort((a, b) => a.exactTime - b.exactTime);
 
       let dayMinutes = 0;
-      let currentEntry = null;
 
-      for (let i = 0; i < dayEntries.length; i++) {
-        const currentTime = dayEntries[i].timestamp;
+      // Process pairs: first entry, second exit, third entry, fourth exit, etc.
+      for (let i = 0; i < dayEntries.length - 1; i += 2) {
+        const entry = dayEntries[i];
+        const exit = i + 1 < dayEntries.length ? dayEntries[i + 1] : null;
 
-        if (i % 2 === 0) {
-          // This is an entry
-          currentEntry = currentTime;
-        } else {
-          // This is an exit, calculate time if we have a valid entry
-          if (currentEntry) {
-            const diff = (currentTime - currentEntry) / (1000 * 60); // Convert to minutes
+        if (entry && exit) {
+          const diff = (exit.exactTime - entry.exactTime) / (1000 * 60); // Convert to minutes
 
-            // Only add if the difference is valid (positive and less than 24 hours)
-            if (diff > 0 && diff < 24 * 60) {
-              dayMinutes += diff;
-            }
+          // Only add if the difference is valid (positive and less than 24 hours)
+          if (diff > 0 && diff < 24 * 60) {
+            dayMinutes += diff;
           }
-          currentEntry = null;
         }
       }
 
@@ -375,14 +371,24 @@ export default function StoragePage() {
 
     // Create CSV header
     const csvRows = [];
-    csvRows.push(['Código', 'Fecha y Hora'].join(','));
+    csvRows.push(['Código', 'Fecha y Hora', 'Tiempo Trabajado'].join(','));
 
-    // Add data rows
-    savedEntries.forEach((entry) => {
-      const formattedDate = entry.timestamp
-        ? new Date(entry.timestamp).toLocaleString()
-        : 'N/A';
-      csvRows.push([entry.barcode, formattedDate].join(','));
+    // Group entries by barcode for time calculations
+    const entriesByBarcode = groupEntriesByBarcode(savedEntries);
+
+    // Process each entry with its corresponding worked time
+    Object.entries(entriesByBarcode).forEach(([barcode, entries]) => {
+      // Get time calculation for this barcode
+      const { hours, minutes } = calculateTotalTime(entries);
+      const timeWorked = `${hours}h ${minutes}m`;
+
+      // Add each entry with its barcode's total time
+      entries.forEach((entry) => {
+        const formattedDate = entry.timestamp
+          ? new Date(entry.timestamp).toLocaleString()
+          : 'N/A';
+        csvRows.push([entry.barcode, formattedDate, timeWorked].join(','));
+      });
     });
 
     const csvContent = 'data:text/csv;charset=utf-8,' + csvRows.join('\n');
@@ -428,6 +434,21 @@ export default function StoragePage() {
 
   // Change page
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
+  // Pre-calculate time values for all entries
+  const timeCalculations = useMemo(() => {
+    const grouped = groupEntriesByBarcode(filteredEntries);
+    const calculations = {};
+
+    Object.entries(grouped).forEach(([barcode, entries]) => {
+      calculations[barcode] = {
+        timeValues: calculateTotalTime(entries),
+        timeDetails: showTimeCalculationDetails(entries),
+      };
+    });
+
+    return calculations;
+  }, [filteredEntries, dateRange, recalcTrigger]);
 
   return (
     <Layout>
@@ -641,8 +662,14 @@ export default function StoragePage() {
               <div className="border border-gray-200 rounded-lg overflow-hidden">
                 {Object.entries(groupEntriesByBarcode(filteredEntries)).map(
                   ([barcode, entries], groupIndex) => {
-                    const { hours, minutes } = calculateTotalTime(entries);
-                    const timeDetails = showTimeCalculationDetails(entries);
+                    // Access pre-calculated time values instead of using useMemo here
+                    const { hours, minutes } = timeCalculations[barcode]
+                      ?.timeValues || {
+                      hours: 0,
+                      minutes: 0,
+                    };
+                    const timeDetails =
+                      timeCalculations[barcode]?.timeDetails || '';
 
                     return (
                       <div key={groupIndex} className="mb-4">
@@ -654,13 +681,24 @@ export default function StoragePage() {
                             {entries.length} registro
                             {entries.length > 1 ? 's' : ''})
                           </div>
-                          <div
-                            className="bg-blue-600 text-white px-3 py-1 rounded-md text-sm mt-2 sm:mt-0"
-                            title={timeDetails}
-                          >
-                            {hours} hora{hours !== 1 ? 's' : ''} y {minutes}{' '}
-                            minuto{minutes !== 1 ? 's' : ''} trabajado
-                            {hours !== 1 || minutes !== 1 ? 's' : ''}
+                          <div className="flex items-center gap-2 mt-2 sm:mt-0">
+                            <button
+                              onClick={() =>
+                                setRecalcTrigger((prev) => prev + 1)
+                              }
+                              className="bg-gray-200 hover:bg-gray-300 text-gray-700 p-1 rounded-full transition-colors"
+                              title="Recalcular tiempo"
+                            >
+                              <FaSync className="h-4 w-4" />
+                            </button>
+                            <div
+                              className="bg-blue-600 text-white px-3 py-1 rounded-md text-sm"
+                              title={timeDetails}
+                            >
+                              {hours} hora{hours !== 1 ? 's' : ''} y {minutes}{' '}
+                              minuto{minutes !== 1 ? 's' : ''} trabajado
+                              {hours !== 1 || minutes !== 1 ? 's' : ''}
+                            </div>
                           </div>
                         </div>
 
