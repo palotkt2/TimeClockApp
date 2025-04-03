@@ -125,7 +125,7 @@ export default function FaceDetector({
       const predictions = await model.estimateFaces(videoRef.current, false);
       // Filter predictions using a confidence threshold (e.g., 0.9)
       const filteredPredictions = predictions.filter(
-        (pred) => pred.probability && pred.probability[0] > 0.9
+        (pred) => pred.probability && pred.probability[0] > 0
       );
       const faceDetected = filteredPredictions.length > 0;
 
@@ -223,36 +223,19 @@ export default function FaceDetector({
   useEffect(() => {
     if (isRecording && faceDetectionModel) {
       if (!isFaceDetected) {
-        // Clear any existing timeout
-        if (noFaceTimeoutRef.current) {
-          clearTimeout(noFaceTimeoutRef.current);
+        // Show warning immediately when no face is detected
+        if (!noFaceWarningShown && onError) {
+          onError(
+            'No se detecta un rostro en la cámara. Por favor, mire directamente a la cámara.',
+            'warning'
+          );
+          setNoFaceWarningShown(true);
         }
-
-        // Set new timeout - if face is not detected within 3 seconds, show warning
-        noFaceTimeoutRef.current = setTimeout(() => {
-          if (!noFaceWarningShown && onError) {
-            onError(
-              'No se detecta un rostro en la cámara. Por favor, mire directamente a la cámara.',
-              'warning'
-            );
-            setNoFaceWarningShown(true);
-          }
-        }, 3000);
       } else {
-        // Face detected, clear timeout and reset warning state
-        if (noFaceTimeoutRef.current) {
-          clearTimeout(noFaceTimeoutRef.current);
-          noFaceTimeoutRef.current = null;
-        }
+        // Face detected, reset warning state
         setNoFaceWarningShown(false);
       }
     }
-
-    return () => {
-      if (noFaceTimeoutRef.current) {
-        clearTimeout(noFaceTimeoutRef.current);
-      }
-    };
   }, [
     isRecording,
     isFaceDetected,
@@ -264,11 +247,6 @@ export default function FaceDetector({
   // Reset warning when recording state changes
   useEffect(() => {
     setNoFaceWarningShown(false);
-
-    if (!isRecording && noFaceTimeoutRef.current) {
-      clearTimeout(noFaceTimeoutRef.current);
-      noFaceTimeoutRef.current = null;
-    }
   }, [isRecording]);
 
   if (!isRecording) return null;
@@ -287,35 +265,27 @@ export default function FaceDetector({
       {!isModelLoading && (
         <>
           <div
-            className={`absolute top-2 right-2 flex items-center p-2 rounded-full transition-all duration-300 ${
+            className={`absolute top-3 right-3 flex items-center backdrop-blur-sm shadow-md border ${
               isFaceDetected
-                ? 'bg-green-100 text-green-800'
-                : 'bg-red-100 text-red-800'
-            }`}
-            style={{
-              animation: isFaceDetected
-                ? `${pulse} 1.5s infinite`
-                : `${shake} 0.5s ease`,
-              border: `2px solid ${isFaceDetected ? '#10b981' : '#ef4444'}`,
-            }}
+                ? 'bg-green-100 border-green-300 text-green-800'
+                : 'bg-yellow-50 border-yellow-200 text-yellow-800'
+            } rounded-full py-1.5 px-4 transform transition-all duration-300 ease-in-out hover:scale-105`}
           >
-            {isFaceDetected ? (
-              <>
-                <FaceIcon fontSize="small" className="mr-1" />
-                <span className="text-sm font-medium">
-                  {new Date().getMilliseconds() % 2 === 0
-                    ? '¡Rostro detectado!'
-                    : '¡Perfecto! Te veo'}
-                </span>
-              </>
-            ) : (
-              <>
-                <FaceRetouchingOffIcon fontSize="small" className="mr-1" />
-                <span className="text-sm font-medium">
-                  Colóquese frente a la cámara
-                </span>
-              </>
-            )}
+            <span
+              className={`h-3.5 w-3.5 rounded-full mr-2.5 ${
+                isFaceDetected ? 'bg-green-500' : 'bg-yellow-500'
+              } shadow-inner flex-shrink-0`}
+            >
+              <span
+                className={`absolute inset-0 rounded-full ${
+                  isFaceDetected ? 'bg-green-400' : 'bg-yellow-400'
+                } animate-ping opacity-75`}
+                style={{ width: '14px', height: '14px' }}
+              ></span>
+            </span>
+            <span className="text-sm font-semibold whitespace-nowrap">
+              {isFaceDetected ? 'Rostro detectado ✓' : 'Buscando rostro...'}
+            </span>
           </div>
 
           {/* Face indicator in upper-left */}

@@ -2,11 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { AppBar, Toolbar, Typography, Box, Paper } from '@mui/material';
 import { keyframes } from '@mui/system';
 import Image from 'next/image';
+import InfoIcon from '@mui/icons-material/Info';
+import PaidIcon from '@mui/icons-material/Paid';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 
 const pulseAnimation = keyframes`
   0% { opacity: 1; }
   50% { opacity: 0.5; }
   100% { opacity: 1; }
+`;
+
+const marqueeAnimation = keyframes`
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(-120%); }
 `;
 
 const Header = () => {
@@ -33,7 +41,10 @@ const Header = () => {
     formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1);
 
   // Get hours, minutes, seconds for modern display
-  const hours = dateTime.getHours().toString().padStart(2, '0');
+  const hours = dateTime.getHours();
+  // Convert to 12-hour format
+  const hours12 = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+  const formattedHours = hours12.toString().padStart(2, '0');
   const minutes = dateTime.getMinutes().toString().padStart(2, '0');
   const seconds = dateTime.getSeconds().toString().padStart(2, '0');
   const ampm = dateTime.getHours() >= 12 ? 'PM' : 'AM';
@@ -54,14 +65,14 @@ const Header = () => {
           <Image
             src="/images/benchpro-logo-blue-back.svg"
             alt="BenchPro Logo"
-            width={180}
+            width={140}
             height={55}
             priority
             style={{ height: 'auto' }}
           />
         </Box>
 
-        {/* Center content with title and date */}
+        {/* Center content with marquee text (removed Date Paper) */}
         <Box
           sx={{
             flexGrow: 1,
@@ -71,40 +82,110 @@ const Header = () => {
             justifyContent: 'center',
           }}
         >
-          <Typography
-            variant="h5"
+          {/* Horizontal scrolling text - improved marquee effect */}
+          <Box
             sx={{
-              fontWeight: 'bold',
-              fontFamily: '"Roboto", sans-serif',
-              color: '#1565c0',
-              mb: 0.5,
-              letterSpacing: '0.5px',
-            }}
-          >
-            Reloj Checador
-          </Typography>
-
-          {/* Date now appears below the title */}
-          <Typography
-            variant="body1"
-            sx={{
-              fontFamily: '"Roboto", sans-serif',
-              color: '#5c6bc0',
-              fontWeight: 500,
-              fontSize: '0.95rem',
-              backgroundColor: '#f3f8ff',
-              px: 2,
-              py: 0.5,
+              mt: 1,
+              width: '80%',
+              maxWidth: '600px',
+              overflow: 'hidden',
+              backgroundColor: '#e3f2fd',
               borderRadius: 1,
-              border: '1px solid #e3f2fd',
+              border: '1px solid #bbdefb',
+              py: 0.75,
+              position: 'relative',
+              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+              '&::before, &::after': {
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                width: '15px',
+                height: '100%',
+                zIndex: 2,
+              },
+              '&::before': {
+                left: 0,
+                background:
+                  'linear-gradient(90deg, #e3f2fd 0%, transparent 100%)',
+              },
+              '&::after': {
+                right: 0,
+                background:
+                  'linear-gradient(90deg, transparent 0%, #e3f2fd 100%)',
+              },
             }}
           >
-            {capitalizedDate}
-          </Typography>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                whiteSpace: 'nowrap',
+                animation: `${marqueeAnimation} 35s linear infinite`,
+              }}
+            >
+              <InfoIcon
+                sx={{
+                  mr: 1,
+                  color: '#1565c0',
+                  animation: `${pulseAnimation} 2s infinite`,
+                }}
+              />
+              <Typography
+                variant="body2"
+                sx={{
+                  fontFamily: '"Roboto", sans-serif',
+                  color: '#0d47a1',
+                  fontWeight: 500,
+                  letterSpacing: '0.01em',
+                }}
+              >
+                Instrucciones: Asegúrese que su rostro esté visible y bien
+                iluminado. Escanee credencial o ingrése su numero de empleado
+                manualmente. Espere la confirmación de registro exitoso.
+              </Typography>
+            </Box>
+          </Box>
         </Box>
 
-        {/* Clock on the right */}
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+        {/* Clock, Date, and Bonus on the right */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          {/* Added Date Paper next to the clock */}
+          <Paper
+            elevation={2}
+            sx={{
+              display: 'inline-flex',
+              background: 'linear-gradient(145deg, #fdf6e3, #f5deb3)',
+              color: '#5d4037',
+              p: 1.2,
+              borderRadius: 2,
+              minWidth: '240px',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 4px 12px rgba(180, 140, 100, 0.3)',
+              border: '1px solid #d2b48c',
+              transition: 'transform 0.2s ease-in-out',
+              '&:hover': {
+                transform: 'scale(1.03)',
+              },
+            }}
+          >
+            <CalendarMonthIcon sx={{ mr: 1, fontSize: '1.2rem' }} />
+            <Box>
+              <Typography
+                variant="caption"
+                sx={{ display: 'block', opacity: 0.9, fontWeight: 500 }}
+              >
+                Fecha
+              </Typography>
+              <Typography
+                variant="subtitle1"
+                sx={{ fontWeight: 'bold', lineHeight: 1 }}
+              >
+                {capitalizedDate}
+              </Typography>
+            </Box>
+          </Paper>
+          {/* Clock Paper remains unchanged */}
           <Paper
             elevation={3}
             sx={{
@@ -126,7 +207,7 @@ const Header = () => {
               }}
             >
               <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                {hours}
+                {formattedHours}
               </Typography>
               <Typography
                 variant="h6"
@@ -166,6 +247,41 @@ const Header = () => {
                 }}
               >
                 {ampm}
+              </Typography>
+            </Box>
+          </Paper>
+          {/* Weekly Bonus Paper remains unchanged */}
+          <Paper
+            elevation={2}
+            sx={{
+              display: 'inline-flex',
+              background: 'linear-gradient(145deg, #2e7d32, #1b5e20)',
+              color: 'white',
+              p: 1.2,
+              borderRadius: 2,
+              minWidth: '120px',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 4px 12px rgba(46, 125, 50, 0.3)',
+              transition: 'transform 0.2s ease-in-out',
+              '&:hover': {
+                transform: 'scale(1.03)',
+              },
+            }}
+          >
+            <PaidIcon sx={{ mr: 1, fontSize: '1.2rem' }} />
+            <Box>
+              <Typography
+                variant="caption"
+                sx={{ display: 'block', opacity: 0.9, fontWeight: 500 }}
+              >
+                Bono Semanal
+              </Typography>
+              <Typography
+                variant="subtitle1"
+                sx={{ fontWeight: 'bold', lineHeight: 1 }}
+              >
+                $950 pesos
               </Typography>
             </Box>
           </Paper>

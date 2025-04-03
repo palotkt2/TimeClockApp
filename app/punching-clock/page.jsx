@@ -2,11 +2,10 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Layout from '../Layout';
-// Remove unnecessary imports
 import { keyframes } from '@emotion/react';
-// Import our components
 import FaceDetector from '../components/FaceDetector';
 import MessageNotification from '../components/MessageNotification';
+import { saveAs } from 'file-saver';
 
 export default function PunchingClock() {
   const videoRef = useRef(null);
@@ -18,11 +17,9 @@ export default function PunchingClock() {
   const [lastScannedBarcode, setLastScannedBarcode] = useState('');
   const timeoutRef = useRef(null);
 
-  // Face detection states - simplified now that we're using the component
   const [isFaceDetected, setIsFaceDetected] = useState(false);
   const [isModelLoading, setIsModelLoading] = useState(false);
 
-  // Success and error popup states
   const [openSuccessPopup, setOpenSuccessPopup] = useState(false);
   const [openErrorPopup, setOpenErrorPopup] = useState(false);
   const [successEmployee, setSuccessEmployee] = useState({
@@ -33,7 +30,6 @@ export default function PunchingClock() {
   const [errorMessage, setErrorMessage] = useState('');
   const [errorSeverity, setErrorSeverity] = useState('error');
 
-  // Auto-start webcam when component mounts
   useEffect(() => {
     startWebcam().catch((error) => {
       console.error('Failed to auto-start webcam:', error);
@@ -50,7 +46,6 @@ export default function PunchingClock() {
     };
   }, []);
 
-  // Function to start the webcam
   const startWebcam = async () => {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -80,7 +75,6 @@ export default function PunchingClock() {
     }
   };
 
-  // Function to stop the webcam
   const stopWebcam = () => {
     if (stream) {
       stream.getTracks().forEach((track) => track.stop());
@@ -90,7 +84,6 @@ export default function PunchingClock() {
     setIsFaceDetected(false);
   };
 
-  // Function to show error message - auto-dismiss for warnings only
   const showError = (message, severity = 'error') => {
     setErrorMessage(message);
     setErrorSeverity(severity);
@@ -111,13 +104,11 @@ export default function PunchingClock() {
     setOpenSuccessPopup(false);
   };
 
-  // Function to capture photo from webcam
   const capturePhoto = async () => {
     if (!videoRef.current || !isRecording) {
       return null;
     }
 
-    // Use the checkForFace method exposed by the FaceDetector component
     const faceDetected = videoRef.current.checkForFace
       ? await videoRef.current.checkForFace()
       : isFaceDetected;
@@ -153,6 +144,12 @@ export default function PunchingClock() {
     }
   };
 
+  const saveToJSONFile = (entries) => {
+    const jsonContent = JSON.stringify(entries, null, 2);
+    const blob = new Blob([jsonContent], { type: 'application/json' });
+    saveAs(blob, 'barcodeEntries.json');
+  };
+
   const saveBarcode = async (codeToSave) => {
     if (codeToSave && codeToSave.trim() !== '') {
       setLastScannedBarcode(codeToSave);
@@ -176,7 +173,6 @@ export default function PunchingClock() {
           const timestamp = new Date().toISOString();
           const newEntry = { barcode: codeToSave, timestamp, photo: photoData };
 
-          // Save to localStorage
           const existingEntries =
             JSON.parse(localStorage.getItem('barcodeEntries')) || [];
           existingEntries.push(newEntry);
@@ -184,6 +180,9 @@ export default function PunchingClock() {
             'barcodeEntries',
             JSON.stringify(existingEntries)
           );
+
+          // Save to JSON file
+          saveToJSONFile(existingEntries);
 
           setSuccessEmployee({
             number: codeToSave,
@@ -267,35 +266,81 @@ export default function PunchingClock() {
 
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-2">
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          {/* Input fields section */}
-          <div className="sticky mb-6">
-            <h2 className="text-xl font-semibold mb-3">Número de Empleado</h2>
+      <div className="container mx-auto px-2 py-0 mb-0 max-w-4xl -mt-6">
+        <div className="bg-white rounded-lg shadow-xl pt-3 px-6 pb-6 border border-gray-200">
+          <div className="mb-6">
+            <h2 className="text-xl font-semibold mb-3 text-gray-700 flex items-center">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-6 w-6 mr-2 text-blue-600"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"
+                />
+              </svg>
+              Número de Empleado
+            </h2>
             <div className="flex flex-col sm:flex-row gap-4 items-center">
               <div className="relative w-full sm:w-64">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5 text-gray-400"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </div>
                 <input
                   ref={barcodeInputRef}
                   type="text"
                   value={barcode}
                   onChange={handleBarcodeChange}
                   onKeyDown={handleBarcodeInput}
-                  className="border border-gray-300 rounded px-3 py-2 w-full"
-                  placeholder="Escanear código de barras..."
+                  className="border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-lg px-10 py-3 w-full text-lg transition-all duration-200"
+                  placeholder="Escanear..."
                   autoFocus
+                  aria-label="Escanear código de empleado"
                 />
                 {barcode.trim() !== '' && (
                   <button
                     onClick={() => saveBarcode(barcode)}
-                    className="absolute right-1 top-1 bg-blue-500 text-white rounded px-2 py-1 text-sm"
+                    className="absolute right-2 top-2 bg-blue-600 text-white rounded-md px-3 py-1 text-sm hover:bg-blue-700 transition-all duration-200 flex items-center"
                   >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-4 w-4 mr-1"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
                     Guardar
                   </button>
                 )}
               </div>
-              <div className="bg-gray-100 border border-gray-300 rounded px-3 py-2 w-full">
-                <span className="font-medium">Último código escaneado: </span>
-                <span className="font-bold">
+              <div className="bg-gray-50 border border-gray-300 rounded-lg px-4 py-3 w-full shadow-sm">
+                <span className="font-medium text-gray-600">
+                  Último código:{' '}
+                </span>
+                <span className="font-bold text-blue-700">
                   {lastScannedBarcode || 'Ninguno'}
                 </span>
               </div>
@@ -303,7 +348,34 @@ export default function PunchingClock() {
           </div>
 
           <div className="flex flex-col items-center">
-            <div className="w-full max-w-2xl border border-gray-300 mb-4 relative">
+            <div className="w-full max-w-2xl border border-gray-300 rounded-lg overflow-hidden mb-4 relative bg-gray-100">
+              {!isRecording && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-100 bg-opacity-80 z-10">
+                  <div className="text-center p-4">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-16 w-16 mx-auto text-gray-400 mb-2"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+                      />
+                    </svg>
+                    <p className="text-lg font-medium text-gray-700">
+                      Cámara desactivada
+                    </p>
+                    <p className="text-sm text-gray-500 mb-4">
+                      Haga clic en "Iniciar Cámara" para activarla
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <video
                 ref={videoRef}
                 autoPlay
@@ -312,7 +384,8 @@ export default function PunchingClock() {
                 className="w-full h-auto"
               />
 
-              {/* Face detection component - update onError to pass severity */}
+              {/* Enhanced status indicator with better styling and animations */}
+
               <FaceDetector
                 videoRef={videoRef}
                 isRecording={isRecording}
@@ -324,35 +397,98 @@ export default function PunchingClock() {
               />
             </div>
 
-            <div className="mt-4 flex gap-4">
+            <div className="mt-4 flex gap-4 w-full justify-center">
               {!isRecording ? (
                 <button
-                  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                  className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center font-medium shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed"
                   onClick={startWebcam}
                   disabled={isModelLoading}
                 >
-                  {isModelLoading ? 'Cargando...' : 'Iniciar Cámara'}
+                  {isModelLoading ? (
+                    <>
+                      <svg
+                        className="animate-spin -ml-1 mr-2 h-5 w-5 text-white"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                      </svg>
+                      Cargando...
+                    </>
+                  ) : (
+                    <>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5 mr-2"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+                        />
+                      </svg>
+                      Iniciar Cámara
+                    </>
+                  )}
                 </button>
               ) : (
                 <button
-                  className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+                  className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors duration-200 flex items-center font-medium shadow-md"
                   onClick={stopWebcam}
                 >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5 mr-2"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"
+                    />
+                  </svg>
                   Detener Cámara
                 </button>
               )}
             </div>
           </div>
         </div>
+
+        <div className="mt-4 text-center text-sm text-gray-500">
+          Si tiene problemas con el registro, contacte a RH al ext. 1234
+        </div>
       </div>
 
-      {/* Message Notifications component */}
       <MessageNotification
-        // Success props
         openSuccessPopup={openSuccessPopup}
         onCloseSuccess={handleCloseSuccess}
         successEmployee={successEmployee}
-        // Error props
         openErrorPopup={openErrorPopup}
         errorMessage={errorMessage}
         errorSeverity={errorSeverity}
