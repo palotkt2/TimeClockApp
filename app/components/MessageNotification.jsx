@@ -1,6 +1,12 @@
 'use client';
 
-import React from 'react';
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  forwardRef,
+  useImperativeHandle,
+} from 'react';
 import {
   Snackbar,
   Alert,
@@ -11,10 +17,14 @@ import {
   IconButton,
   Divider,
 } from '@mui/material';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
-import WarningIcon from '@mui/icons-material/Warning';
-import CloseIcon from '@mui/icons-material/Close';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+  faCircleCheck,
+  faCircleExclamation,
+  faTriangleExclamation,
+  faClock,
+  faXmark,
+} from '@fortawesome/free-solid-svg-icons';
 import { keyframes } from '@emotion/react';
 
 // Animations
@@ -30,19 +40,126 @@ const bounce = keyframes`
   }
 `;
 
-export default function MessageNotification({
-  // Success notification props
-  openSuccessPopup,
-  onCloseSuccess,
-  successEmployee,
+const MessageNotification = forwardRef(function MessageNotification(
+  {
+    onRetryCamera,
+    inputRef, // Reference to input field for focusing after closing notifications
+    autoCloseDuration = 5000, // Auto close after this many ms (0 to disable)
+  },
+  ref
+) {
+  // Internal state
+  const [openSuccessPopup, setOpenSuccessPopup] = useState(false);
+  const [openErrorPopup, setOpenErrorPopup] = useState(false);
+  const [successEmployee, setSuccessEmployee] = useState({
+    number: '',
+    name: 'Empleado',
+    photo: null,
+  });
+  const [errorMessage, setErrorMessage] = useState('');
+  const [errorSeverity, setErrorSeverity] = useState('error');
+  const [cooldownTimer, setCooldownTimer] = useState(0);
 
-  // Error notification props
-  openErrorPopup,
-  errorMessage,
-  errorSeverity = 'error',
-  onCloseError,
-  onRetryCamera,
-}) {
+  // Refs for timers
+  const autoCloseTimerRef = useRef(null);
+  const cooldownTimerRef = useRef(null);
+
+  // Expose methods to parent component
+  useImperativeHandle(ref, () => ({
+    showSuccess: (employee) => {
+      setSuccessEmployee(employee);
+      setOpenSuccessPopup(true);
+      setOpenErrorPopup(false);
+
+      if (autoCloseDuration > 0) {
+        if (autoCloseTimerRef.current) clearTimeout(autoCloseTimerRef.current);
+        autoCloseTimerRef.current = setTimeout(() => {
+          setOpenSuccessPopup(false);
+          focusInput();
+        }, autoCloseDuration);
+      }
+    },
+
+    showError: (message, severity = 'error', cooldownSeconds = 0) => {
+      setErrorMessage(message);
+      setErrorSeverity(severity);
+      setOpenErrorPopup(true);
+      setOpenSuccessPopup(false);
+
+      if (cooldownSeconds > 0) {
+        setCooldownTimer(cooldownSeconds);
+        startCooldownTimer();
+      } else if (severity === 'warning' && autoCloseDuration > 0) {
+        if (autoCloseTimerRef.current) clearTimeout(autoCloseTimerRef.current);
+        autoCloseTimerRef.current = setTimeout(() => {
+          setOpenErrorPopup(false);
+          focusInput();
+        }, autoCloseDuration);
+      }
+    },
+
+    closeAll: () => {
+      setOpenSuccessPopup(false);
+      setOpenErrorPopup(false);
+      clearAllTimers();
+    },
+  }));
+
+  // Helper to focus input
+  const focusInput = () => {
+    if (inputRef && inputRef.current) {
+      setTimeout(() => {
+        inputRef.current.focus();
+      }, 100);
+    }
+  };
+
+  // Start cooldown timer
+  const startCooldownTimer = () => {
+    if (cooldownTimerRef.current) {
+      clearInterval(cooldownTimerRef.current);
+    }
+
+    cooldownTimerRef.current = setInterval(() => {
+      setCooldownTimer((prevTime) => {
+        if (prevTime <= 1) {
+          clearInterval(cooldownTimerRef.current);
+          setOpenErrorPopup(false);
+          focusInput();
+          return 0;
+        }
+        return prevTime - 1;
+      });
+    }, 1000);
+  };
+
+  // Clear all timers
+  const clearAllTimers = () => {
+    if (autoCloseTimerRef.current) clearTimeout(autoCloseTimerRef.current);
+    if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
+  };
+
+  // Handle closures
+  const handleCloseSuccess = () => {
+    setOpenSuccessPopup(false);
+    if (autoCloseTimerRef.current) clearTimeout(autoCloseTimerRef.current);
+    focusInput();
+  };
+
+  const handleCloseError = () => {
+    setOpenErrorPopup(false);
+    if (autoCloseTimerRef.current) clearTimeout(autoCloseTimerRef.current);
+    if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
+    focusInput();
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      clearAllTimers();
+    };
+  }, []);
+
   return (
     <>
       {/* Success notification */}
@@ -92,19 +209,23 @@ export default function MessageNotification({
                   height: 64,
                   bgcolor: '#bbf7d0',
                   color: '#15803d',
-                  animation: `${bounce} 1s ease infinite`,
+                  animation: `${bounce} 2s ease infinite`,
                   mb: 1,
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
                 }}
               >
-                <span
-                  role="img"
-                  aria-label="winking face"
-                  style={{ fontSize: '2rem' }}
-                >
-                  😉
-                </span>
+                <img
+                  src="/images/ok.webp"
+                  alt="Success"
+                  style={{
+                    width: '70%',
+                    height: '70%',
+                    objectFit: 'contain',
+                  }}
+                />
               </Avatar>
-
               <Typography
                 variant="subtitle1"
                 sx={{ fontWeight: 'bold', mt: 1 }}
@@ -152,10 +273,32 @@ export default function MessageNotification({
             )}
 
             <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-              <CheckCircleIcon sx={{ color: '#16a34a', mr: 1 }} />
+              <FontAwesomeIcon
+                icon={faCircleCheck}
+                style={{ color: '#16a34a', marginRight: '8px' }}
+                size="lg"
+              />
               <Typography variant="body2">
                 Registro guardado correctamente
               </Typography>
+            </Box>
+
+            <Box sx={{ mt: 2 }}>
+              <Button
+                variant="outlined"
+                color="success"
+                onClick={handleCloseSuccess}
+                sx={{
+                  borderColor: '#16a34a',
+                  color: '#16a34a',
+                  '&:hover': {
+                    borderColor: '#15803d',
+                    bgcolor: 'rgba(22, 163, 74, 0.04)',
+                  },
+                }}
+              >
+                Cerrar
+              </Button>
             </Box>
           </Box>
         </Alert>
@@ -190,9 +333,9 @@ export default function MessageNotification({
               aria-label="close"
               color="inherit"
               size="small"
-              onClick={onCloseError}
+              onClick={handleCloseError}
             >
-              <CloseIcon fontSize="inherit" />
+              <FontAwesomeIcon icon={faXmark} />
             </IconButton>
           }
         >
@@ -247,13 +390,51 @@ export default function MessageNotification({
               >
                 {errorMessage}
               </Typography>
+
+              {/* Display countdown timer for cooldown warnings */}
+              {errorSeverity === 'warning' && cooldownTimer > 0 && (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    mt: 2,
+                    backgroundColor: 'rgba(234, 179, 8, 0.1)',
+                    borderRadius: '8px',
+                    padding: '8px 16px',
+                  }}
+                >
+                  <FontAwesomeIcon
+                    icon={faClock}
+                    style={{ marginRight: '8px', color: '#b45309' }}
+                    size="lg"
+                  />
+                  <Typography
+                    variant="h5"
+                    sx={{ fontWeight: 'bold', color: '#b45309' }}
+                  >
+                    {cooldownTimer}
+                  </Typography>
+                  <Typography variant="body2" sx={{ ml: 1, color: '#92400e' }}>
+                    segundos restantes
+                  </Typography>
+                </Box>
+              )}
             </Box>
 
             <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
               {errorSeverity === 'warning' ? (
-                <WarningIcon sx={{ color: '#92400e', mr: 1 }} />
+                <FontAwesomeIcon
+                  icon={faTriangleExclamation}
+                  style={{ color: '#92400e', marginRight: '8px' }}
+                  size="lg"
+                />
               ) : (
-                <ErrorOutlineIcon sx={{ color: '#b91c1c', mr: 1 }} />
+                <FontAwesomeIcon
+                  icon={faCircleExclamation}
+                  style={{ color: '#b91c1c', marginRight: '8px' }}
+                  size="lg"
+                />
               )}
               <Typography variant="body2">
                 {errorSeverity === 'warning'
@@ -278,7 +459,7 @@ export default function MessageNotification({
               )}
               <Button
                 variant="outlined"
-                onClick={onCloseError}
+                onClick={handleCloseError}
                 sx={{
                   color: errorSeverity === 'warning' ? '#92400e' : '#991b1b',
                   borderColor:
@@ -301,4 +482,6 @@ export default function MessageNotification({
       </Snackbar>
     </>
   );
-}
+});
+
+export default MessageNotification;

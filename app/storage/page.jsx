@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Layout from '../Layout';
+import { useRouter } from 'next/navigation';
 import {
   FaTrash,
   FaSearch,
@@ -15,17 +16,28 @@ import {
   FaTimes,
   FaCalendarAlt,
   FaSync,
+  FaSignOutAlt,
+  FaPowerOff,
+  FaUser,
 } from 'react-icons/fa';
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import LogoutIcon from '@mui/icons-material/Logout';
+import { Button } from '@mui/material';
 
 export default function StoragePage() {
+  // Router hook
+  const router = useRouter();
+
+  // Move ALL state declarations to the top level, before any conditional returns
+  const [user, setUser] = useState(null);
   const [savedEntries, setSavedEntries] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredEntries, setFilteredEntries] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [entriesPerPage, setEntriesPerPage] = useState(10);
-  const [sortOrder, setSortOrder] = useState('newest'); // 'newest', 'oldest', 'alphabetical'
+  const [sortOrder, setSortOrder] = useState('newest');
   const [isFiltering, setIsFiltering] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
@@ -35,7 +47,28 @@ export default function StoragePage() {
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [recalcTrigger, setRecalcTrigger] = useState(0);
 
-  // Load saved entries from localStorage on component mount
+  // Check authentication on mount
+  useEffect(() => {
+    const userData = localStorage.getItem('user');
+    if (!userData) {
+      router.push('/login');
+      return;
+    }
+
+    try {
+      const parsedUser = JSON.parse(userData);
+      if (!parsedUser.isLoggedIn) {
+        router.push('/login');
+        return;
+      }
+      setUser(parsedUser);
+    } catch (error) {
+      console.error('Error parsing user data:', error);
+      router.push('/login');
+    }
+  }, [router]);
+
+  // Load saved entries effect
   useEffect(() => {
     const storedEntries = localStorage.getItem('barcodeEntries');
     if (storedEntries) {
@@ -106,6 +139,12 @@ export default function StoragePage() {
     // Reset to first page when filters change
     setCurrentPage(1);
   }, [searchTerm, savedEntries, sortOrder, dateFilter]);
+
+  // Define all event handlers and functions
+  const handleLogout = () => {
+    localStorage.removeItem('user');
+    router.push('/login');
+  };
 
   // Sort entries based on selected order
   const sortEntries = (entries, order) => {
@@ -435,7 +474,7 @@ export default function StoragePage() {
   // Change page
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
-  // Pre-calculate time values for all entries
+  // Pre-calculate time values for all entries - this useMemo must come BEFORE any conditional returns
   const timeCalculations = useMemo(() => {
     const grouped = groupEntriesByBarcode(filteredEntries);
     const calculations = {};
@@ -450,8 +489,74 @@ export default function StoragePage() {
     return calculations;
   }, [filteredEntries, dateRange, recalcTrigger]);
 
+  // Make the header logout button more prominent
+  const headerButtons = (
+    <>
+      <button
+        onClick={handleLogout}
+        className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm transition-colors font-medium shadow-sm"
+      >
+        <FaSignOutAlt /> Cerrar sesión
+      </button>
+      <Button
+        variant="outlined"
+        color="error"
+        sx={{
+          ml: 2,
+          py: 1,
+          borderRadius: 1,
+          transition: 'all 0.3s',
+          '&:hover': {
+            backgroundColor: 'rgba(211, 47, 47, 0.04)',
+          },
+        }}
+        startIcon={<LogoutIcon />}
+        onClick={() => {
+          localStorage.removeItem('user');
+          window.location.href = '/login';
+        }}
+      >
+        Cerrar Sesión
+      </Button>
+    </>
+  );
+
+  // NOW you can use conditional return after all hooks have been called
+  if (!user) {
+    return (
+      <div className="flex justify-center items-center h-screen bg-gray-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="mt-4 text-gray-700">Verificando acceso...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <Layout>
+    <Layout headerButtons={headerButtons}>
+      {/* Welcome message with user email and logout button */}
+      <div className="container mx-auto px-4 pt-3">
+        <div className="bg-blue-50 text-blue-700 px-4 py-2 rounded-md mb-4 flex flex-col sm:flex-row sm:items-center">
+          <div className="flex items-center">
+            <FaUser className="mr-2" />
+            <span className="font-medium mr-2">Usuario:</span>
+            {user.name || user.email}
+            <span className="ml-3 text-sm text-gray-500">
+              Último acceso: {new Date(user.loginTime).toLocaleString()}
+            </span>
+          </div>
+
+          {/* Add a second logout button */}
+          <button
+            onClick={handleLogout}
+            className="mt-2 sm:mt-0 sm:ml-auto flex items-center gap-2 bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded-md text-sm transition-colors"
+          >
+            <FaPowerOff /> Cerrar sesión
+          </button>
+        </div>
+      </div>
+
       <div className="container mx-auto px-4 py-6">
         <div className="bg-white rounded-lg shadow-lg p-6">
           <h1 className="text-2xl font-bold mb-6 text-blue-800">
