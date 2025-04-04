@@ -6,11 +6,22 @@ import { keyframes } from '@emotion/react';
 import FaceDetector from '../components/FaceDetector';
 import MessageNotification from '../components/MessageNotification';
 import { saveAs } from 'file-saver';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+  faIdCard,
+  faSearch,
+  faCheck,
+  faVideo,
+  faVideoSlash,
+  faSpinner,
+  faCircleStop,
+} from '@fortawesome/free-solid-svg-icons';
 
 export default function PunchingClock() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const barcodeInputRef = useRef(null);
+  const notificationRef = useRef(null);
   const [stream, setStream] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
   const [barcode, setBarcode] = useState('');
@@ -20,23 +31,17 @@ export default function PunchingClock() {
   const [isFaceDetected, setIsFaceDetected] = useState(false);
   const [isModelLoading, setIsModelLoading] = useState(false);
 
-  const [openSuccessPopup, setOpenSuccessPopup] = useState(false);
-  const [openErrorPopup, setOpenErrorPopup] = useState(false);
-  const [successEmployee, setSuccessEmployee] = useState({
-    number: '',
-    name: 'Empleado',
-    photo: null,
-  });
-  const [errorMessage, setErrorMessage] = useState('');
-  const [errorSeverity, setErrorSeverity] = useState('error');
+  const [employeeLastScanTimes, setEmployeeLastScanTimes] = useState({});
 
   useEffect(() => {
     startWebcam().catch((error) => {
       console.error('Failed to auto-start webcam:', error);
-      showError(
-        'La cámara no inició automáticamente. Haga clic en "Iniciar Cámara" o contacte a RH.',
-        'warning'
-      );
+      if (notificationRef.current) {
+        notificationRef.current.showError(
+          'La cámara no inició automáticamente. Haga clic en "Iniciar Cámara" o contacte a RH.',
+          'warning'
+        );
+      }
     });
 
     return () => {
@@ -60,8 +65,9 @@ export default function PunchingClock() {
       setStream(mediaStream);
       setIsRecording(true);
 
-      if (openErrorPopup) {
-        setOpenErrorPopup(false);
+      // Close any error notifications
+      if (notificationRef.current) {
+        notificationRef.current.closeAll();
       }
 
       if (barcodeInputRef.current) {
@@ -69,9 +75,11 @@ export default function PunchingClock() {
       }
     } catch (error) {
       console.error('Error accessing webcam:', error);
-      showError(
-        'No se pudo acceder a la cámara. Por favor, verifique los permisos y contacte a RH si el problema persiste.'
-      );
+      if (notificationRef.current) {
+        notificationRef.current.showError(
+          'No se pudo acceder a la cámara. Por favor, verifique los permisos y contacte a RH si el problema persiste.'
+        );
+      }
     }
   };
 
@@ -84,26 +92,6 @@ export default function PunchingClock() {
     setIsFaceDetected(false);
   };
 
-  const showError = (message, severity = 'error') => {
-    setErrorMessage(message);
-    setErrorSeverity(severity);
-    setOpenErrorPopup(true);
-
-    if (severity === 'warning') {
-      setTimeout(() => {
-        setOpenErrorPopup(false);
-      }, 5000);
-    }
-  };
-
-  const handleCloseError = () => {
-    setOpenErrorPopup(false);
-  };
-
-  const handleCloseSuccess = () => {
-    setOpenSuccessPopup(false);
-  };
-
   const capturePhoto = async () => {
     if (!videoRef.current || !isRecording) {
       return null;
@@ -114,10 +102,12 @@ export default function PunchingClock() {
       : isFaceDetected;
 
     if (!faceDetected) {
-      showError(
-        'No se detectó un rostro. Por favor, mire a la cámara.',
-        'warning'
-      );
+      if (notificationRef.current) {
+        notificationRef.current.showError(
+          'No se detectó un rostro. Por favor, mire a la cámara.',
+          'warning'
+        );
+      }
       return null;
     }
 
@@ -139,7 +129,11 @@ export default function PunchingClock() {
       return canvas.toDataURL('image/jpeg', 0.7);
     } catch (error) {
       console.error('Error capturing photo:', error);
-      showError('Error al capturar la foto. Por favor contacte a RH.');
+      if (notificationRef.current) {
+        notificationRef.current.showError(
+          'Error al capturar la foto. Por favor contacte a RH.'
+        );
+      }
       return null;
     }
   };
@@ -152,13 +146,36 @@ export default function PunchingClock() {
 
   const saveBarcode = async (codeToSave) => {
     if (codeToSave && codeToSave.trim() !== '') {
+      const currentTime = Date.now();
+      const lastScanTime = employeeLastScanTimes[codeToSave] || 0;
+      const timeSinceLastScan = currentTime - lastScanTime;
+      const cooldownPeriod = 30 * 1000;
+
+      if (lastScanTime > 0 && timeSinceLastScan < cooldownPeriod) {
+        const remainingSeconds = Math.ceil(
+          (cooldownPeriod - timeSinceLastScan) / 1000
+        );
+
+        // Show cooldown warning
+        if (notificationRef.current) {
+          notificationRef.current.showError(
+            `Debe esperar ${remainingSeconds} segundos antes de volver a checar.`,
+            'warning',
+            remainingSeconds
+          );
+        }
+        return;
+      }
+
       setLastScannedBarcode(codeToSave);
 
       let photoData = null;
       if (!isRecording) {
-        showError(
-          'La cámara no está activa. Por favor inicie la cámara y vuelva a intentarlo. Contacte a RH si necesita asistencia.'
-        );
+        if (notificationRef.current) {
+          notificationRef.current.showError(
+            'La cámara no está activa. Por favor inicie la cámara y vuelva a intentarlo. Contacte a RH si necesita asistencia.'
+          );
+        }
         return;
       } else {
         photoData = await capturePhoto();
@@ -181,23 +198,29 @@ export default function PunchingClock() {
             JSON.stringify(existingEntries)
           );
 
-          // Save to JSON file
           saveToJSONFile(existingEntries);
 
-          setSuccessEmployee({
-            number: codeToSave,
-            name: getEmployeeName(codeToSave) || 'Empleado',
-            photo: photoData,
-          });
-          setOpenSuccessPopup(true);
+          // Show success notification
+          if (notificationRef.current) {
+            notificationRef.current.showSuccess({
+              number: codeToSave,
+              name: getEmployeeName(codeToSave) || 'Empleado',
+              photo: photoData,
+            });
+          }
 
-          setTimeout(() => {
-            setOpenSuccessPopup(false);
-          }, 5000);
+          setEmployeeLastScanTimes((prev) => ({
+            ...prev,
+            [codeToSave]: currentTime,
+          }));
         }
       } catch (error) {
         console.error('Error saving data:', error);
-        showError('Error al guardar los datos. Por favor contacte a RH.');
+        if (notificationRef.current) {
+          notificationRef.current.showError(
+            'Error al guardar los datos. Por favor contacte a RH.'
+          );
+        }
       }
 
       setBarcode('');
@@ -269,81 +292,43 @@ export default function PunchingClock() {
       <div className="container mx-auto px-2 py-0 mb-0 max-w-4xl -mt-6">
         <div className="bg-white rounded-lg shadow-xl pt-3 px-6 pb-6 border border-gray-200">
           <div className="mb-6">
-            <h2 className="text-xl font-semibold mb-3 text-gray-700 flex items-center">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6 mr-2 text-blue-600"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-xl font-semibold text-gray-700 flex items-center">
+                <FontAwesomeIcon
+                  icon={faIdCard}
+                  className="h-6 w-6 mr-2 text-blue-600"
                 />
-              </svg>
-              Número de Empleado
-            </h2>
+                Número de Empleado
+              </h2>
+              <p className="text-sm text-gray-500">
+                Escanee credencial o ingrése su número de empleado manualmente.
+              </p>
+            </div>
             <div className="flex flex-col sm:flex-row gap-4 items-center">
               <div className="relative w-full sm:w-64">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
+                  <FontAwesomeIcon
+                    icon={faSearch}
                     className="h-5 w-5 text-gray-400"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
+                  />
                 </div>
                 <input
                   ref={barcodeInputRef}
                   type="text"
+                  className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Número de empleado"
                   value={barcode}
                   onChange={handleBarcodeChange}
                   onKeyDown={handleBarcodeInput}
-                  className="border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-lg px-10 py-3 w-full text-lg transition-all duration-200"
-                  placeholder="Escanear..."
-                  autoFocus
-                  aria-label="Escanear código de empleado"
                 />
-                {barcode.trim() !== '' && (
-                  <button
-                    onClick={() => saveBarcode(barcode)}
-                    className="absolute right-2 top-2 bg-blue-600 text-white rounded-md px-3 py-1 text-sm hover:bg-blue-700 transition-all duration-200 flex items-center"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-4 w-4 mr-1"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                    Guardar
-                  </button>
-                )}
               </div>
-              <div className="bg-gray-50 border border-gray-300 rounded-lg px-4 py-3 w-full shadow-sm">
-                <span className="font-medium text-gray-600">
-                  Último código:{' '}
-                </span>
-                <span className="font-bold text-blue-700">
-                  {lastScannedBarcode || 'Ninguno'}
-                </span>
-              </div>
+              <button
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 flex-shrink-0 flex items-center"
+                onClick={() => saveBarcode(barcode)}
+              >
+                <FontAwesomeIcon icon={faCheck} className="h-5 w-5 mr-1" />
+                Registrar
+              </button>
             </div>
           </div>
 
@@ -352,20 +337,10 @@ export default function PunchingClock() {
               {!isRecording && (
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-100 bg-opacity-80 z-10">
                   <div className="text-center p-4">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
+                    <FontAwesomeIcon
+                      icon={faVideoSlash}
                       className="h-16 w-16 mx-auto text-gray-400 mb-2"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-                      />
-                    </svg>
+                    />
                     <p className="text-lg font-medium text-gray-700">
                       Cámara desactivada
                     </p>
@@ -384,15 +359,13 @@ export default function PunchingClock() {
                 className="w-full h-auto"
               />
 
-              {/* Enhanced status indicator with better styling and animations */}
-
               <FaceDetector
                 videoRef={videoRef}
                 isRecording={isRecording}
                 onFaceDetectionChange={setIsFaceDetected}
                 onModelLoadingChange={setIsModelLoading}
                 onError={(message, severity = 'error') =>
-                  showError(message, severity)
+                  notificationRef.current?.showError(message, severity)
                 }
               />
             </div>
@@ -406,44 +379,18 @@ export default function PunchingClock() {
                 >
                   {isModelLoading ? (
                     <>
-                      <svg
+                      <FontAwesomeIcon
+                        icon={faSpinner}
                         className="animate-spin -ml-1 mr-2 h-5 w-5 text-white"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        ></circle>
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        ></path>
-                      </svg>
+                      />
                       Cargando...
                     </>
                   ) : (
                     <>
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
+                      <FontAwesomeIcon
+                        icon={faVideo}
                         className="h-5 w-5 mr-2"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-                        />
-                      </svg>
+                      />
                       Iniciar Cámara
                     </>
                   )}
@@ -453,26 +400,10 @@ export default function PunchingClock() {
                   className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors duration-200 flex items-center font-medium shadow-md"
                   onClick={stopWebcam}
                 >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
+                  <FontAwesomeIcon
+                    icon={faCircleStop}
                     className="h-5 w-5 mr-2"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"
-                    />
-                  </svg>
+                  />
                   Detener Cámara
                 </button>
               )}
@@ -486,14 +417,10 @@ export default function PunchingClock() {
       </div>
 
       <MessageNotification
-        openSuccessPopup={openSuccessPopup}
-        onCloseSuccess={handleCloseSuccess}
-        successEmployee={successEmployee}
-        openErrorPopup={openErrorPopup}
-        errorMessage={errorMessage}
-        errorSeverity={errorSeverity}
-        onCloseError={handleCloseError}
+        ref={notificationRef}
         onRetryCamera={startWebcam}
+        inputRef={barcodeInputRef}
+        autoCloseDuration={5000}
       />
     </Layout>
   );
