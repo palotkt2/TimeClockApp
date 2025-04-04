@@ -16,9 +16,8 @@ import {
   FaTimes,
   FaCalendarAlt,
   FaSync,
-  FaSignOutAlt,
-  FaPowerOff,
   FaUser,
+  FaPowerOff,
 } from 'react-icons/fa';
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
@@ -491,34 +490,25 @@ export default function StoragePage() {
 
   // Make the header logout button more prominent
   const headerButtons = (
-    <>
-      <button
-        onClick={handleLogout}
-        className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm transition-colors font-medium shadow-sm"
-      >
-        <FaSignOutAlt /> Cerrar sesión
-      </button>
-      <Button
-        variant="outlined"
-        color="error"
-        sx={{
-          ml: 2,
-          py: 1,
-          borderRadius: 1,
-          transition: 'all 0.3s',
-          '&:hover': {
-            backgroundColor: 'rgba(211, 47, 47, 0.04)',
-          },
-        }}
-        startIcon={<LogoutIcon />}
-        onClick={() => {
-          localStorage.removeItem('user');
-          window.location.href = '/login';
-        }}
-      >
-        Cerrar Sesión
-      </Button>
-    </>
+    <Button
+      variant="contained"
+      color="error"
+      sx={{
+        py: 1,
+        px: 2.5,
+        borderRadius: 1,
+        boxShadow: 2,
+        transition: 'all 0.3s',
+        '&:hover': {
+          backgroundColor: 'rgb(211, 47, 47)',
+          boxShadow: 3,
+        },
+      }}
+      startIcon={<LogoutIcon />}
+      onClick={handleLogout}
+    >
+      Cerrar Sesión
+    </Button>
   );
 
   // NOW you can use conditional return after all hooks have been called
@@ -547,13 +537,26 @@ export default function StoragePage() {
             </span>
           </div>
 
-          {/* Add a second logout button */}
-          <button
+          {/* Updated MUI logout button */}
+          <Button
+            variant="outlined"
+            color="error"
+            size="small"
+            sx={{
+              mt: { xs: 2, sm: 0 },
+              ml: { sm: 'auto' },
+              borderRadius: 1,
+              transition: 'all 0.3s',
+              textTransform: 'none',
+              '&:hover': {
+                backgroundColor: 'rgba(211, 47, 47, 0.04)',
+              },
+            }}
+            startIcon={<FaPowerOff />}
             onClick={handleLogout}
-            className="mt-2 sm:mt-0 sm:ml-auto flex items-center gap-2 bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded-md text-sm transition-colors"
           >
-            <FaPowerOff /> Cerrar sesión
-          </button>
+            Cerrar sesión
+          </Button>
         </div>
       </div>
 

@@ -15,6 +15,8 @@ import {
   faVideoSlash,
   faSpinner,
   faCircleStop,
+  faExpand,
+  faCompress,
 } from '@fortawesome/free-solid-svg-icons';
 
 export default function PunchingClock() {
@@ -22,6 +24,7 @@ export default function PunchingClock() {
   const canvasRef = useRef(null);
   const barcodeInputRef = useRef(null);
   const notificationRef = useRef(null);
+  const pageRef = useRef(null);
   const [stream, setStream] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
   const [barcode, setBarcode] = useState('');
@@ -29,7 +32,10 @@ export default function PunchingClock() {
   const timeoutRef = useRef(null);
 
   const [isFaceDetected, setIsFaceDetected] = useState(false);
+  const [isHumanVerified, setIsHumanVerified] = useState(false);
   const [isModelLoading, setIsModelLoading] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [fullscreenAttempted, setFullscreenAttempted] = useState(false);
 
   const [employeeLastScanTimes, setEmployeeLastScanTimes] = useState({});
 
@@ -44,12 +50,71 @@ export default function PunchingClock() {
       }
     });
 
+    // Try to enter fullscreen mode automatically
+    setTimeout(() => {
+      enterFullscreen();
+      setFullscreenAttempted(true);
+    }, 500);
+
+    // Add fullscreen change event listener
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+
     return () => {
       if (stream) {
         stream.getTracks().forEach((track) => track.stop());
       }
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
     };
   }, []);
+
+  // Add click handler to the whole page to try fullscreen on first interaction
+  const handlePageInteraction = () => {
+    if (!document.fullscreenElement && fullscreenAttempted) {
+      enterFullscreen();
+    }
+  };
+
+  const enterFullscreen = async () => {
+    try {
+      const docEl = document.documentElement;
+      if (docEl.requestFullscreen) {
+        await docEl.requestFullscreen();
+      } else if (docEl.webkitRequestFullscreen) {
+        await docEl.webkitRequestFullscreen();
+      } else if (docEl.msRequestFullscreen) {
+        await docEl.msRequestFullscreen();
+      }
+    } catch (error) {
+      console.error('Error entering fullscreen mode:', error);
+      // Silent error - don't show notification as this is automatic
+    }
+  };
+
+  const exitFullscreen = async () => {
+    try {
+      if (document.exitFullscreen) {
+        await document.exitFullscreen();
+      } else if (document.webkitExitFullscreen) {
+        await document.webkitExitFullscreen();
+      } else if (document.msExitFullscreen) {
+        await document.msExitFullscreen();
+      }
+    } catch (error) {
+      console.error('Error exiting fullscreen mode:', error);
+    }
+  };
+
+  const toggleFullscreen = () => {
+    if (isFullscreen) {
+      exitFullscreen();
+    } else {
+      enterFullscreen();
+    }
+  };
 
   const startWebcam = async () => {
     try {
@@ -92,6 +157,25 @@ export default function PunchingClock() {
     setIsFaceDetected(false);
   };
 
+  const verifyRealPerson = async () => {
+    // First check if face is detected
+    const faceDetected = videoRef.current.checkForFace
+      ? await videoRef.current.checkForFace()
+      : isFaceDetected;
+
+    if (!faceDetected) {
+      return false;
+    }
+
+    // Next check if the custom isHuman verification passes (available through the ref)
+    if (videoRef.current.isHumanVerified) {
+      return videoRef.current.isHumanVerified();
+    }
+
+    // If the enhanced verification isn't available, fallback to just face detection
+    return true;
+  };
+
   const capturePhoto = async () => {
     if (!videoRef.current || !isRecording) {
       return null;
@@ -108,6 +192,16 @@ export default function PunchingClock() {
           'warning'
         );
       }
+      return null;
+    }
+
+    // Verify human before proceeding
+    const isHuman = await verifyRealPerson();
+    if (!isHuman && notificationRef.current) {
+      notificationRef.current.showError(
+        'Se requiere verificación de persona real. Por favor, mire a la cámara, muévase ligeramente y parpadee.',
+        'warning'
+      );
       return null;
     }
 
@@ -178,6 +272,18 @@ export default function PunchingClock() {
         }
         return;
       } else {
+        // Verify it's a real person before capturing photo
+        const isRealPerson = await verifyRealPerson();
+        if (!isRealPerson) {
+          if (notificationRef.current) {
+            notificationRef.current.showError(
+              'No se ha podido verificar una persona real. Por favor, asegúrese de mirar a la cámara, moverse ligeramente y parpadear naturalmente.',
+              'warning'
+            );
+          }
+          return;
+        }
+
         photoData = await capturePhoto();
 
         if (!photoData) {
@@ -289,46 +395,52 @@ export default function PunchingClock() {
 
   return (
     <Layout>
-      <div className="container mx-auto px-2 py-0 mb-0 max-w-4xl -mt-6">
+      <div
+        className="container mx-auto px-2 py-0 mb-0 max-w-4xl -mt-6"
+        ref={pageRef}
+        onClick={handlePageInteraction}
+      >
         <div className="bg-white rounded-lg shadow-xl pt-3 px-6 pb-6 border border-gray-200">
           <div className="mb-6">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-xl font-semibold text-gray-700 flex items-center">
+            <div className="flex flex-col sm:flex-row items-center justify-between mb-3 gap-4">
+              <h2 className="text-xl font-semibold text-gray-700 flex items-center whitespace-nowrap">
                 <FontAwesomeIcon
                   icon={faIdCard}
                   className="h-6 w-6 mr-2 text-blue-600"
                 />
                 Número de Empleado
               </h2>
-              <p className="text-sm text-gray-500">
-                Escanee credencial o ingrése su número de empleado manualmente.
-              </p>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-4 items-center">
-              <div className="relative w-full sm:w-64">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FontAwesomeIcon
-                    icon={faSearch}
-                    className="h-5 w-5 text-gray-400"
+
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="relative flex-grow sm:w-64">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FontAwesomeIcon
+                      icon={faSearch}
+                      className="h-5 w-5 text-gray-400"
+                    />
+                  </div>
+                  <input
+                    ref={barcodeInputRef}
+                    type="text"
+                    className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Número de empleado"
+                    value={barcode}
+                    onChange={handleBarcodeChange}
+                    onKeyDown={handleBarcodeInput}
                   />
                 </div>
-                <input
-                  ref={barcodeInputRef}
-                  type="text"
-                  className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Número de empleado"
-                  value={barcode}
-                  onChange={handleBarcodeChange}
-                  onKeyDown={handleBarcodeInput}
-                />
+                <button
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 flex-shrink-0 flex items-center"
+                  onClick={() => saveBarcode(barcode)}
+                >
+                  <FontAwesomeIcon icon={faCheck} className="h-5 w-5 mr-1" />
+                  Registrar
+                </button>
               </div>
-              <button
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 flex-shrink-0 flex items-center"
-                onClick={() => saveBarcode(barcode)}
-              >
-                <FontAwesomeIcon icon={faCheck} className="h-5 w-5 mr-1" />
-                Registrar
-              </button>
+
+              <p className="text-sm text-gray-500 whitespace-nowrap">
+                Escanee credencial.
+              </p>
             </div>
           </div>
 
@@ -367,6 +479,7 @@ export default function PunchingClock() {
                 onError={(message, severity = 'error') =>
                   notificationRef.current?.showError(message, severity)
                 }
+                onHumanVerificationChange={setIsHumanVerified}
               />
             </div>
 
@@ -407,6 +520,19 @@ export default function PunchingClock() {
                   Detener Cámara
                 </button>
               )}
+
+              <button
+                className="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition-colors duration-200 flex items-center font-medium shadow-md"
+                onClick={toggleFullscreen}
+              >
+                <FontAwesomeIcon
+                  icon={isFullscreen ? faCompress : faExpand}
+                  className="h-5 w-5 mr-2"
+                />
+                {isFullscreen
+                  ? 'Salir de Pantalla Completa'
+                  : 'Pantalla Completa'}
+              </button>
             </div>
           </div>
         </div>

@@ -24,6 +24,7 @@ import {
   faTriangleExclamation,
   faClock,
   faXmark,
+  faUserShield, // Icon for human verification
 } from '@fortawesome/free-solid-svg-icons';
 import { keyframes } from '@emotion/react';
 
@@ -51,6 +52,7 @@ const MessageNotification = forwardRef(function MessageNotification(
   // Internal state
   const [openSuccessPopup, setOpenSuccessPopup] = useState(false);
   const [openErrorPopup, setOpenErrorPopup] = useState(false);
+  const [openHumanVerifyPopup, setOpenHumanVerifyPopup] = useState(false); // New state for human verification notification
   const [successEmployee, setSuccessEmployee] = useState({
     number: '',
     name: 'Empleado',
@@ -58,6 +60,7 @@ const MessageNotification = forwardRef(function MessageNotification(
   });
   const [errorMessage, setErrorMessage] = useState('');
   const [errorSeverity, setErrorSeverity] = useState('error');
+  const [verifyMessage, setVerifyMessage] = useState(''); // New state for human verification message
   const [cooldownTimer, setCooldownTimer] = useState(0);
 
   // Refs for timers
@@ -70,6 +73,7 @@ const MessageNotification = forwardRef(function MessageNotification(
       setSuccessEmployee(employee);
       setOpenSuccessPopup(true);
       setOpenErrorPopup(false);
+      setOpenHumanVerifyPopup(false);
 
       if (autoCloseDuration > 0) {
         if (autoCloseTimerRef.current) clearTimeout(autoCloseTimerRef.current);
@@ -85,6 +89,7 @@ const MessageNotification = forwardRef(function MessageNotification(
       setErrorSeverity(severity);
       setOpenErrorPopup(true);
       setOpenSuccessPopup(false);
+      setOpenHumanVerifyPopup(false);
 
       if (cooldownSeconds > 0) {
         setCooldownTimer(cooldownSeconds);
@@ -98,9 +103,25 @@ const MessageNotification = forwardRef(function MessageNotification(
       }
     },
 
+    showHumanVerification: (message) => {
+      setVerifyMessage(message);
+      setOpenHumanVerifyPopup(true);
+      setOpenSuccessPopup(false);
+      setOpenErrorPopup(false);
+
+      if (autoCloseDuration > 0) {
+        if (autoCloseTimerRef.current) clearTimeout(autoCloseTimerRef.current);
+        autoCloseTimerRef.current = setTimeout(() => {
+          setOpenHumanVerifyPopup(false);
+          focusInput();
+        }, autoCloseDuration);
+      }
+    },
+
     closeAll: () => {
       setOpenSuccessPopup(false);
       setOpenErrorPopup(false);
+      setOpenHumanVerifyPopup(false);
       clearAllTimers();
     },
   }));
@@ -153,6 +174,12 @@ const MessageNotification = forwardRef(function MessageNotification(
     focusInput();
   };
 
+  const handleCloseHumanVerify = () => {
+    setOpenHumanVerifyPopup(false);
+    if (autoCloseTimerRef.current) clearTimeout(autoCloseTimerRef.current);
+    focusInput();
+  };
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -167,10 +194,10 @@ const MessageNotification = forwardRef(function MessageNotification(
         open={openSuccessPopup}
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
         sx={{
-          top: '25%',
+          top: '20%', // Moved higher in the viewport
           transform: 'translateY(-50%)',
-          width: { xs: '90%', sm: 'auto' },
-          maxWidth: '400px',
+          width: { xs: '95%', sm: '450px' }, // Slightly reduced width
+          maxWidth: '450px',
         }}
       >
         <Alert
@@ -178,10 +205,11 @@ const MessageNotification = forwardRef(function MessageNotification(
           sx={{
             width: '100%',
             boxShadow: 4,
-            p: 2,
+            p: 2, // Reduced padding
             backgroundColor: '#f0fdf4',
             color: '#166534',
             border: '1px solid #dcfce7',
+            borderRadius: 2, // Added slightly rounded corners
           }}
         >
           <Box
@@ -191,7 +219,7 @@ const MessageNotification = forwardRef(function MessageNotification(
               flexDirection: 'column',
             }}
           >
-            <Typography variant="h6" component="div">
+            <Typography variant="h6" component="div" sx={{ mb: 1 }}>
               ¡Checada con éxito!
             </Typography>
 
@@ -199,18 +227,20 @@ const MessageNotification = forwardRef(function MessageNotification(
               sx={{
                 display: 'flex',
                 alignItems: 'center',
-                flexDirection: 'column',
-                my: 1,
+                justifyContent: 'center',
+                flexDirection: 'row', // Changed to row layout
+                width: '100%',
+                my: 1, // Reduced margin
               }}
             >
               <Avatar
                 sx={{
-                  width: 64,
-                  height: 64,
+                  width: 70, // Smaller avatar
+                  height: 70,
                   bgcolor: '#bbf7d0',
                   color: '#15803d',
                   animation: `${bounce} 2s ease infinite`,
-                  mb: 1,
+                  mr: 2, // Add margin right for row layout
                   display: 'flex',
                   justifyContent: 'center',
                   alignItems: 'center',
@@ -226,25 +256,43 @@ const MessageNotification = forwardRef(function MessageNotification(
                   }}
                 />
               </Avatar>
-              <Typography
-                variant="subtitle1"
-                sx={{ fontWeight: 'bold', mt: 1 }}
-              >
-                {successEmployee?.name || 'Empleado'}
-              </Typography>
 
-              <Typography variant="body2">
-                Número: {successEmployee?.number || ''}
-              </Typography>
+              <Box>
+                <Typography
+                  variant="subtitle1"
+                  sx={{ fontWeight: 'bold', mb: 0.5 }}
+                >
+                  {successEmployee?.name || 'Empleado'}
+                </Typography>
+
+                <Typography variant="body2" sx={{ mb: 0.5 }}>
+                  {' '}
+                  {/* Smaller text */}
+                  Número: {successEmployee?.number || ''}
+                </Typography>
+
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <FontAwesomeIcon
+                    icon={faCircleCheck}
+                    style={{ color: '#16a34a', marginRight: '8px' }}
+                    size="sm" // Smaller icon
+                  />
+                  <Typography variant="body2">
+                    {' '}
+                    {/* Smaller text */}
+                    Registro guardado correctamente
+                  </Typography>
+                </Box>
+              </Box>
             </Box>
 
             {successEmployee?.photo && (
               <>
-                <Divider sx={{ width: '100%', my: 1.5 }} />
-                <Box sx={{ mt: 1, width: '100%' }}>
+                <Divider sx={{ width: '100%', my: 1 }} /> {/* Smaller margin */}
+                <Box sx={{ width: '100%', textAlign: 'center' }}>
                   <Typography
-                    variant="body2"
-                    sx={{ mb: 1, fontWeight: 'medium', textAlign: 'center' }}
+                    variant="body2" // Smaller text
+                    sx={{ mb: 1, fontWeight: 'medium' }}
                   >
                     Foto capturada:
                   </Typography>
@@ -261,7 +309,7 @@ const MessageNotification = forwardRef(function MessageNotification(
                       alt="Foto capturada"
                       style={{
                         maxWidth: '100%',
-                        maxHeight: '120px',
+                        maxHeight: '130px', // Reduced height
                         objectFit: 'contain',
                         borderRadius: '4px',
                         border: '1px solid #dcfce7',
@@ -272,22 +320,12 @@ const MessageNotification = forwardRef(function MessageNotification(
               </>
             )}
 
-            <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-              <FontAwesomeIcon
-                icon={faCircleCheck}
-                style={{ color: '#16a34a', marginRight: '8px' }}
-                size="lg"
-              />
-              <Typography variant="body2">
-                Registro guardado correctamente
-              </Typography>
-            </Box>
-
-            <Box sx={{ mt: 2 }}>
+            <Box sx={{ mt: 1.5 }}>
               <Button
                 variant="outlined"
                 color="success"
                 onClick={handleCloseSuccess}
+                size="small" // Smaller button
                 sx={{
                   borderColor: '#16a34a',
                   color: '#16a34a',
@@ -295,6 +333,8 @@ const MessageNotification = forwardRef(function MessageNotification(
                     borderColor: '#15803d',
                     bgcolor: 'rgba(22, 163, 74, 0.04)',
                   },
+                  px: 2,
+                  py: 0.5, // Less vertical padding
                 }}
               >
                 Cerrar
@@ -475,6 +515,114 @@ const MessageNotification = forwardRef(function MessageNotification(
                 }}
               >
                 Cerrar
+              </Button>
+            </Box>
+          </Box>
+        </Alert>
+      </Snackbar>
+
+      {/* Human verification notification */}
+      <Snackbar
+        open={openHumanVerifyPopup}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        sx={{
+          top: '25%',
+          transform: 'translateY(-50%)',
+          width: { xs: '90%', sm: 'auto' },
+          maxWidth: '400px',
+        }}
+      >
+        <Alert
+          severity="info"
+          sx={{
+            width: '100%',
+            boxShadow: 4,
+            p: 2,
+            backgroundColor: '#eff6ff',
+            color: '#1e40af',
+            border: '1px solid #dbeafe',
+          }}
+          action={
+            <IconButton
+              aria-label="close"
+              color="inherit"
+              size="small"
+              onClick={handleCloseHumanVerify}
+            >
+              <FontAwesomeIcon icon={faXmark} />
+            </IconButton>
+          }
+        >
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              flexDirection: 'column',
+            }}
+          >
+            <Typography variant="h6" component="div">
+              Verificación de Persona
+            </Typography>
+
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                flexDirection: 'column',
+                my: 1,
+              }}
+            >
+              <Avatar
+                sx={{
+                  width: 64,
+                  height: 64,
+                  bgcolor: '#dbeafe',
+                  color: '#1e40af',
+                  mb: 1,
+                }}
+              >
+                <FontAwesomeIcon icon={faUserShield} size="lg" />
+              </Avatar>
+
+              <Typography
+                variant="body1"
+                sx={{
+                  fontWeight: 'medium',
+                  mt: 1,
+                  textAlign: 'center',
+                }}
+              >
+                {verifyMessage || 'Por favor, complete la verificación humana.'}
+              </Typography>
+            </Box>
+
+            <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
+              {onRetryCamera && (
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={onRetryCamera}
+                  sx={{
+                    bgcolor: '#2563eb',
+                    '&:hover': { bgcolor: '#1d4ed8' },
+                  }}
+                >
+                  Reintentar Cámara
+                </Button>
+              )}
+              <Button
+                variant="outlined"
+                onClick={handleCloseHumanVerify}
+                sx={{
+                  color: '#2563eb',
+                  borderColor: '#2563eb',
+                  '&:hover': {
+                    borderColor: '#1d4ed8',
+                    bgcolor: 'rgba(37, 99, 235, 0.04)',
+                  },
+                }}
+              >
+                Continuar
               </Button>
             </Box>
           </Box>
