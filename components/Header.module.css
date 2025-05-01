@@ -1,0 +1,134 @@
+.appBar {
+  border-bottom: 2px solid #f0f0f0;
+  background-color: white;
+  box-shadow: none;
+  margin-bottom: 60px;
+  z-index: 15;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+}
+
+.flexGrow {
+  flex-grow: 1;
+}
+
+.desktopMenu {
+  display: none;
+}
+
+@media (min-width: 1200px) {
+  .desktopMenu {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+}
+
+.buttonBase {
+  border-radius: 4px;
+  padding: 8px 16px;
+  transition: all 0.3s ease;
+}
+
+.buttonBase:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.phoneButton {
+  border-radius: 20px;
+  padding: 6px 16px;
+  transition: all 0.3s ease;
+}
+
+.phoneButton:hover {
+  background-color: rgba(25, 118, 210, 0.08);
+}
+
+.iconButton {
+  transition: all 0.2s ease;
+}
+
+.iconButton:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.mobileOnly {
+  display: flex;
+}
+
+@media (min-width: 1200px) {
+  .mobileOnly {
+    display: none;
+  }
+}
+
+.desktopOnly {
+  display: none;
+}
+
+@media (min-width: 1200px) {
+  .desktopOnly {
+    display: inline-flex;
+    align-items: center;
+  }
+}
+
+.searchContainer {
+  padding: 16px;
+  background-color: white;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.searchInput {
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 8px 16px;
+  width: 100%;
+}
+
+.mobileDrawerPaper {
+  width: 300px;
+  border-radius: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.drawerHeader {
+  padding: 16px;
+  border-bottom: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.drawerList {
+  flex-grow: 1;
+  overflow: auto;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.searchForm {
+  padding: 16px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.spacer {
+  height: 2rem;
+}
+
+@media (min-width: 600px) {
+  .spacer {
+    height: 2.5rem;
+  }
+}
+
+@media (min-width: 900px) {
+  .spacer {
+    height: 3rem;
+  }
+}
