@@ -1,0 +1,253 @@
+import React, { useState, useEffect } from 'react';
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  Box,
+  Paper,
+  Divider,
+} from '@mui/material';
+import { keyframes } from '@mui/system';
+import Image from 'next/image';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import InfoIcon from '@mui/icons-material/Info';
+import MarqueeText from './MarqueeText';
+import { getAppUrl, PUBLIC_URL } from '../utils/envConfig';
+
+const pulseAnimation = keyframes`
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+`;
+
+const Header = () => {
+  const [dateTime, setDateTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setDateTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  // Format the date: weekday, month day, year
+  const formattedDate = dateTime.toLocaleDateString('es-MX', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+
+  // Capitalize first letter for better appearance
+  const capitalizedDate =
+    formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1);
+
+  // Get hours, minutes, seconds for modern display
+  const hours = dateTime.getHours();
+  // Convert to 12-hour format
+  const hours12 = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+  const formattedHours = hours12.toString().padStart(2, '0');
+  const minutes = dateTime.getMinutes().toString().padStart(2, '0');
+  const seconds = dateTime.getSeconds().toString().padStart(2, '0');
+  const ampm = dateTime.getHours() >= 12 ? 'PM' : 'AM';
+
+  const instructionsText = 'Si tiene problemas con el registro, contacte a RH';
+
+  return (
+    <>
+      <AppBar
+        position="sticky"
+        elevation={0}
+        sx={{
+          bgcolor: 'white',
+          mb: 0,
+          borderBottom: 'none',
+        }}
+      >
+        <Toolbar sx={{ py: 1.5 }}>
+          {/* Logo on the left */}
+          <Box sx={{ display: 'flex', alignItems: 'center', mr: 3 }}>
+            <Image
+              src="/images/benchpro-logo-blue-back.svg"
+              alt="BenchPro Logo"
+              width={150}
+              height={58}
+              priority
+              style={{ height: 'auto' }}
+            />
+          </Box>
+
+          {/* Flexible center space */}
+          <Box
+            sx={{
+              flexGrow: 1,
+            }}
+          />
+
+          {/* Clock, Date, Marquee on the right */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
+            {/* Added MarqueeText component next to the date */}
+            <Paper
+              elevation={2}
+              sx={{
+                display: 'inline-flex',
+                background: 'linear-gradient(145deg, #e3f2fd, #bbdefb)',
+                color: '#0d47a1',
+                p: 1,
+                borderRadius: 2,
+                minWidth: '300px',
+                maxWidth: '400px',
+                alignItems: 'center',
+                justifyContent: 'flex-start',
+                boxShadow: '0 4px 12px rgba(13, 71, 161, 0.1)',
+                border: '1px solid #bbdefb',
+                transition: 'all 0.3s ease-in-out',
+                overflow: 'hidden',
+                '&:hover': {
+                  boxShadow: '0 6px 15px rgba(13, 71, 161, 0.2)',
+                },
+              }}
+            >
+              <InfoIcon sx={{ color: '#1565c0', mr: 1, flexShrink: 0 }} />
+              <Box sx={{ overflow: 'hidden', width: '100%' }}>
+                <MarqueeText text={instructionsText} speed={10} />
+              </Box>
+            </Paper>
+
+            {/* Added Date Paper next to the marquee */}
+            <Paper
+              elevation={2}
+              sx={{
+                display: 'inline-flex',
+                background: 'linear-gradient(145deg, #fdf6e3, #f5deb3)',
+                color: '#5d4037',
+                p: 1.5,
+                borderRadius: 2,
+                minWidth: '240px',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 12px rgba(180, 140, 100, 0.2)',
+                border: '1px solid #d2b48c',
+                transition: 'all 0.3s ease-in-out',
+                '&:hover': {
+                  transform: 'scale(1.03)',
+                  boxShadow: '0 6px 15px rgba(180, 140, 100, 0.35)',
+                },
+              }}
+            >
+              <CalendarMonthIcon
+                sx={{ mr: 1.5, fontSize: '1.3rem', color: '#8d6e63' }}
+              />
+              <Box>
+                <Typography
+                  variant="subtitle1"
+                  sx={{
+                    fontWeight: 'bold',
+                    lineHeight: 1.2,
+                    fontSize: '1.5rem',
+                  }}
+                >
+                  {capitalizedDate}
+                </Typography>
+              </Box>
+            </Paper>
+
+            {/* Clock Paper with improved UI */}
+            <Paper
+              elevation={3}
+              sx={{
+                display: 'inline-flex',
+                background: 'linear-gradient(145deg, #1976d2, #0d47a1)',
+                color: 'white',
+                p: 1.5,
+                borderRadius: 2,
+                minWidth: '180px',
+                justifyContent: 'center',
+                boxShadow: '0 4px 12px rgba(21, 101, 192, 0.3)',
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  boxShadow: '0 6px 15px rgba(21, 101, 192, 0.45)',
+                },
+              }}
+            >
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  fontFamily: '"Roboto Mono", monospace',
+                }}
+              >
+                <Typography
+                  variant="h6"
+                  sx={{ fontWeight: 'bold', fontSize: '1.5rem' }}
+                >
+                  {formattedHours}
+                </Typography>
+                <Typography
+                  variant="h6"
+                  sx={{
+                    mx: 0.5,
+                    animation: `${pulseAnimation} 1s infinite`,
+                    fontSize: '1.5rem',
+                  }}
+                >
+                  :
+                </Typography>
+                <Typography
+                  variant="h6"
+                  sx={{ fontWeight: 'bold', fontSize: '1.5rem' }}
+                >
+                  {minutes}
+                </Typography>
+                <Typography
+                  variant="h6"
+                  sx={{
+                    mx: 0.5,
+                    animation: `${pulseAnimation} 1s infinite`,
+                    fontSize: '1.5rem',
+                  }}
+                >
+                  :
+                </Typography>
+                <Typography
+                  variant="h6"
+                  sx={{ fontWeight: 'bold', fontSize: '1.5rem' }}
+                >
+                  {seconds}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    ml: 1,
+                    alignSelf: 'flex-start',
+                    color: '#ffffff',
+                    bgcolor: 'rgba(255,255,255,0.25)',
+                    px: 0.8,
+                    py: 0.3,
+                    borderRadius: 1,
+                    fontWeight: 'bold',
+                    fontSize: '1rem', // Proportionally increased but smaller than main digits
+                  }}
+                >
+                  {ampm}
+                </Typography>
+              </Box>
+            </Paper>
+          </Box>
+        </Toolbar>
+      </AppBar>
+      {/* Divider with gradient effect for better visual separation */}
+      <Box
+        sx={{
+          height: '4px',
+          background: 'linear-gradient(90deg, #1565c0, #42a5f5, #1976d2)',
+          boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
+          mb: 2,
+        }}
+      />
+    </>
+  );
+};
+
+export default Header;

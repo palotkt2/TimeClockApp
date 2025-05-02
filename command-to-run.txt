@@ -1,0 +1,8 @@
+# Option 1: Use npm run commands (recommended)
+npm run dev
+
+# Option 2: Use npx to run next directly
+npx next dev --experimental-https
+
+# Option 3: Use the full path to next in node_modules
+node_modules/.bin/next dev --experimental-https

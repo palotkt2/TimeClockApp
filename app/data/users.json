@@ -1,0 +1,20 @@
+[
+  {
+    "email": "humberto@benchpro.com",
+    "password": "1234",
+    "name": "Administrador",
+    "role": "admin"
+  },
+  {
+    "email": "usuario@example.com",
+    "password": "usuario123",
+    "name": "Usuario Regular",
+    "role": "user"
+  },
+  {
+    "email": "guardia@example.com",
+    "password": "guardia123",
+    "name": "Guardia",
+    "role": "guard"
+  }
+]
